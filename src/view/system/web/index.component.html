@@ -417,6 +417,9 @@
           </tr>
         </thead>
         <tbody>
+          <tr class="web-move-buffer" aria-hidden="true">
+            <td [style.height.px]="webBufferTop"></td>
+          </tr>
           <tr #webRow *ngFor="let data of websiteTableData; let idx = index">
             <td
               [nzChecked]="setOfCheckedId.has(data.id)"
@@ -470,6 +473,9 @@
               <pre class="desc">{{ data.desc }}</pre>
             </td>
             <td>{{ data.breadcrumb }}</td>
+          </tr>
+          <tr class="web-move-buffer" aria-hidden="true">
+            <td [style.height.px]="webBufferBottom"></td>
           </tr>
         </tbody>
       </nz-table>

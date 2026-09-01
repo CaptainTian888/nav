@@ -23,3 +23,16 @@
     overflow: auto;
   }
 }
+.web-move-buffer {
+  pointer-events: none;
+
+  td {
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  &:hover td {
+    background: transparent !important;
+  }
+}

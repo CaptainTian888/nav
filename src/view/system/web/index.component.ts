@@ -94,9 +94,14 @@ export default class WebpComponent {
   setOfCheckedId = new Set<number>()
   errorWebs: IWebProps[] = []
 
+  webBufferTop = 0
+  webBufferBottom = 0
+
   @ViewChildren('webRow')
   private webRows!: QueryList<ElementRef<HTMLTableRowElement>>
   private webMovePending = false
+  private webLockedHeight = 0
+  private webScrollContainer: HTMLElement | null = null
 
   constructor(
     private modal: NzModalService,
@@ -411,9 +416,14 @@ export default class WebpComponent {
     this.tabActive = index ?? this.tabActive
     this.setOfCheckedId.clear()
     this.checkedAll = false
+    this.resetWebScrollRoom()
   }
 
-  private moveWebKeepingPosition(index: number, move: () => void): void {
+  private moveWebKeepingPosition(
+    index: number,
+    offset: -1 | 1,
+    move: () => void,
+  ): void {
     if (this.webMovePending) {
       return
     }
@@ -425,6 +435,8 @@ export default class WebpComponent {
     }
 
     const beforeTop = row.getBoundingClientRect().top
+    const container = this.getWebScrollContainer(row)
+    this.reserveWebScrollRoom(container, row, index, offset)
     this.webMovePending = true
 
     try {
@@ -446,12 +458,72 @@ export default class WebpComponent {
             return
           }
 
-          this.getScrollContainer(row).scrollTop += delta
+          container.scrollTop += delta
         } finally {
           this.webMovePending = false
         }
       },
       { injector: this.injector },
+    )
+  }
+
+  // 边界处补足滚动余量，让被调整网站始终停在原位置
+  private reserveWebScrollRoom(
+    container: HTMLElement,
+    row: HTMLTableRowElement,
+    index: number,
+    offset: -1 | 1,
+  ): void {
+    const neighbor = this.webRows?.get(index + offset)?.nativeElement
+    const distance = neighbor
+      ? Math.abs(
+          neighbor.getBoundingClientRect().top -
+            row.getBoundingClientRect().top,
+        )
+      : row.getBoundingClientRect().height
+    if (distance < 0.5) {
+      return
+    }
+
+    const available =
+      offset === -1
+        ? container.scrollTop
+        : container.scrollHeight - container.clientHeight - container.scrollTop
+    const shortfall = distance - available
+    if (shortfall <= 0.5) {
+      return
+    }
+
+    this.lockWebTableHeight(container)
+    if (offset === -1) {
+      this.webBufferTop += shortfall
+    } else {
+      this.webBufferBottom += shortfall
+    }
+  }
+
+  private lockWebTableHeight(container: HTMLElement): void {
+    if (this.webLockedHeight > 0) {
+      return
+    }
+    this.webLockedHeight = container.clientHeight
+    this.webScrollContainer = container
+    container.style.height = `${this.webLockedHeight}px`
+  }
+
+  private resetWebScrollRoom(): void {
+    this.webBufferTop = 0
+    this.webBufferBottom = 0
+    this.webLockedHeight = 0
+    if (this.webScrollContainer) {
+      this.webScrollContainer.style.height = ''
+      this.webScrollContainer = null
+    }
+  }
+
+  private getWebScrollContainer(row: HTMLElement): HTMLElement {
+    return (
+      (row.closest('.ant-table') as HTMLElement) ?? this.getScrollContainer(row)
     )
   }
 
@@ -597,7 +669,7 @@ export default class WebpComponent {
         this.navs()[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
           index - 1
         ]
-      this.moveWebKeepingPosition(index, () => {
+      this.moveWebKeepingPosition(index, -1, () => {
         this.navs.update((prev) => {
           prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
             index - 1
@@ -633,7 +705,7 @@ export default class WebpComponent {
         this.navs()[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
           index + 1
         ]
-      this.moveWebKeepingPosition(index, () => {
+      this.moveWebKeepingPosition(index, 1, () => {
         this.navs.update((prev) => {
           prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
             index + 1
