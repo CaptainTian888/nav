@@ -2,7 +2,7 @@
 // Copyright @ 2018-present xiejiahe. All rights reserved.
 // See https://github.com/xjh22222228/nav
 
-import { Component } from '@angular/core'
+import { Component, ElementRef, QueryList, ViewChildren } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import type { INavTwoProp, INavThreeProp, IWebProps } from 'src/types'
@@ -86,6 +86,10 @@ export default class WebpComponent {
   checkedAll = false
   setOfCheckedId = new Set<number>()
   errorWebs: IWebProps[] = []
+
+  @ViewChildren('webRow')
+  private webRows!: QueryList<ElementRef<HTMLTableRowElement>>
+  private webMovePending = false
 
   constructor(
     private modal: NzModalService,
@@ -401,6 +405,61 @@ export default class WebpComponent {
     this.checkedAll = false
   }
 
+  private moveWebKeepingPosition(index: number, move: () => void): void {
+    if (this.webMovePending) {
+      return
+    }
+
+    const row = this.webRows?.get(index)?.nativeElement
+    if (!row) {
+      move()
+      return
+    }
+
+    const beforeTop = row.getBoundingClientRect().top
+    this.webMovePending = true
+
+    try {
+      move()
+    } catch (error) {
+      this.webMovePending = false
+      throw error
+    }
+
+    requestAnimationFrame(() => {
+      try {
+        if (!row.isConnected) {
+          return
+        }
+
+        const delta = row.getBoundingClientRect().top - beforeTop
+        if (Math.abs(delta) < 0.5) {
+          return
+        }
+
+        this.getScrollContainer(row).scrollTop += delta
+      } finally {
+        this.webMovePending = false
+      }
+    })
+  }
+
+  private getScrollContainer(element: HTMLElement): HTMLElement {
+    let parent = element.parentElement
+
+    while (parent) {
+      const { overflowY } = getComputedStyle(parent)
+      const canScroll = /(auto|scroll|overlay)/.test(overflowY)
+      if (canScroll && parent.scrollHeight > parent.clientHeight) {
+        return parent
+      }
+      parent = parent.parentElement
+    }
+
+    return (document.scrollingElement ||
+      document.documentElement) as HTMLElement
+  }
+
   // 上移一级
   moveOneUp(index: number): void {
     if (index === 0) {
@@ -527,14 +586,17 @@ export default class WebpComponent {
         this.navs()[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
           index - 1
         ]
-      this.navs.update((prev) => {
-        prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
-          index - 1
-        ] = current
-        prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[index] =
-          prevData
-        setNavs(prev)
-        return prev
+      this.moveWebKeepingPosition(index, () => {
+        this.navs.update((prev) => {
+          prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
+            index - 1
+          ] = current
+          prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
+            index
+          ] = prevData
+          setNavs(prev)
+          return prev
+        })
       })
     } catch (error: any) {
       this.notification.error($t('_error'), error.message)
@@ -560,14 +622,17 @@ export default class WebpComponent {
         this.navs()[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
           index + 1
         ]
-      this.navs.update((prev) => {
-        prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
-          index + 1
-        ] = current
-        prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[index] =
-          next
-        setNavs(prev)
-        return prev
+      this.moveWebKeepingPosition(index, () => {
+        this.navs.update((prev) => {
+          prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
+            index + 1
+          ] = current
+          prev[this.oneIndex].nav[this.twoIndex].nav[this.threeIndex].nav[
+            index
+          ] = next
+          setNavs(prev)
+          return prev
+        })
       })
     } catch (error: any) {
       this.notification.error($t('_error'), error.message)

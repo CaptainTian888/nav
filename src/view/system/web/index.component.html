@@ -417,7 +417,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let data of websiteTableData; let idx = index">
+          <tr #webRow *ngFor="let data of websiteTableData; let idx = index">
             <td
               [nzChecked]="setOfCheckedId.has(data.id)"
               (nzCheckedChange)="onItemChecked(data.id, $event)"
