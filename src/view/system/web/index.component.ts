@@ -2,7 +2,14 @@
 // Copyright @ 2018-present xiejiahe. All rights reserved.
 // See https://github.com/xjh22222228/nav
 
-import { Component, ElementRef, QueryList, ViewChildren } from '@angular/core'
+import {
+  afterNextRender,
+  Component,
+  ElementRef,
+  Injector,
+  QueryList,
+  ViewChildren,
+} from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import type { INavTwoProp, INavThreeProp, IWebProps } from 'src/types'
@@ -96,6 +103,7 @@ export default class WebpComponent {
     private notification: NzNotificationService,
     private message: NzMessageService,
     public commonService: CommonService,
+    private injector: Injector,
   ) {}
 
   ngOnInit() {}
@@ -426,22 +434,25 @@ export default class WebpComponent {
       throw error
     }
 
-    requestAnimationFrame(() => {
-      try {
-        if (!row.isConnected) {
-          return
-        }
+    afterNextRender(
+      () => {
+        try {
+          if (!row.isConnected) {
+            return
+          }
 
-        const delta = row.getBoundingClientRect().top - beforeTop
-        if (Math.abs(delta) < 0.5) {
-          return
-        }
+          const delta = row.getBoundingClientRect().top - beforeTop
+          if (Math.abs(delta) < 0.5) {
+            return
+          }
 
-        this.getScrollContainer(row).scrollTop += delta
-      } finally {
-        this.webMovePending = false
-      }
-    })
+          this.getScrollContainer(row).scrollTop += delta
+        } finally {
+          this.webMovePending = false
+        }
+      },
+      { injector: this.injector },
+    )
   }
 
   private getScrollContainer(element: HTMLElement): HTMLElement {
